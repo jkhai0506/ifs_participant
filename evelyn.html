@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wasteland Survivor ID - Secured</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050404;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #d6cfc7;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            /* 為了 3D 效果新增透視點 */
+            perspective: 1200px;
+        }
+
+        /* --- 第一層：原始開機畫面 --- */
+        #boot-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #050404;
+            color: #d49900;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeOut 0.5s ease 2.2s forwards;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* --- 第二層：職位解碼畫面 --- */
+        #position-discovery {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #050404;
+            color: #ff4400;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            animation: 
+                fadeInOut 2.5s ease 2.5s forwards,
+                screenShake 0.1s infinite 2.5s; 
+            font-family: 'Oswald', sans-serif;
+            font-size: 24px;
+            letter-spacing: 6px;
+            font-weight: 900;
+        }
+
+        .position-box {
+            position: relative;
+            border: 4px double #ff4400;
+            padding: 30px 50px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(255, 68, 0, 0.4), inset 0 0 20px rgba(255, 68, 0, 0.2);
+            background: rgba(255, 68, 0, 0.05);
+            backdrop-filter: blur(5px);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .position-box::after {
+            content: "";
+            position: absolute;
+            top: -100%; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, transparent, rgba(255, 68, 0, 0.5), transparent);
+            animation: radarScan 0.6s linear infinite;
+        }
+
+        /* --- 第三層：[新增] 3D 頭像展示階段 (5.0s - 9.5s) --- */
+        #target-zoom {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9997;
+            opacity: 0;
+            visibility: hidden;
+            /* 4.5秒展示時長，從第5秒開始 */
+            animation: zoomPhase3D 4.5s cubic-bezier(0.4, 0, 0.2, 1) 5s forwards; 
+            transform-style: preserve-3d;
+        }
+
+        .hologram-wrapper {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hologram-wrapper img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: contrast(1.1) brightness(1.1);
+            -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 75%);
+            mask-image: radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 75%);
+        }
+
+        .zoom-scan-bar {
+            position: fixed;
+            width: 100vw;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.4);
+            top: 50%;
+            left: 0; 
+            animation: scanMove3D 1.5s linear infinite;
+            transform: translateZ(300px);
+        }
+
+        .zoom-text {
+            margin-top: 20px;
+            color: #fff;
+            font-weight: bold;
+            letter-spacing: 10px;
+            font-size: 20px; 
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            transform: translateZ(100px);
+        }
+
+        /* --- 基礎動畫與掃描線 --- */
+        .typing-text {
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 2px solid #d49900;
+            width: 0;
+            animation: typing 1.5s steps(30, end) forwards, blink-caret 0.5s step-end infinite;
+        }
+
+        @keyframes typing { from { width: 0 } to { width: 260px } }
+        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #d49900 } }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; visibility: visible; transform: scale(1.3); filter: brightness(2) blur(10px); }
+            15% { opacity: 1; transform: scale(1); filter: brightness(1) blur(0px); }
+            85% { opacity: 1; transform: scale(1); filter: brightness(1.2) contrast(1.2); }
+            100% { opacity: 0; visibility: hidden; transform: scale(0.9) rotate(1deg); filter: blur(15px) hue-rotate(45deg); }
+        }
+
+        /* 3D 延長版動畫定義 */
+        @keyframes zoomPhase3D {
+            0% { opacity: 0; visibility: visible; transform: translateZ(-1500px) rotateX(20deg) scale(0.1); filter: blur(20px); }
+            15% { opacity: 1; transform: translateZ(-300px) rotateX(10deg) scale(0.8); filter: blur(0px); }
+            70% { opacity: 1; transform: translateZ(150px) rotateX(0deg) scale(1.1); filter: blur(0px); }
+            90% { opacity: 1; transform: translateZ(300px) scale(1.3); filter: blur(2px); }
+            100% { opacity: 0; visibility: hidden; transform: translateZ(1000px) scale(4); filter: blur(50px); }
+        }
+
+        @keyframes screenShake {
+            0% { transform: translate(0,0); }
+            20% { transform: translate(-4px, 2px); }
+            40% { transform: translate(4px, -2px); }
+            60% { transform: translate(-2px, -3px); }
+            80% { transform: translate(3px, 3px); }
+            100% { transform: translate(0,0); }
+        }
+
+        @keyframes radarScan { 0% { top: -100%; } 100% { top: 100%; } }
+        @keyframes scanMove3D { 0% { top: 0vh; } 100% { top: 100vh; } }
+
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(40px) scale(0.85); filter: blur(10px); }
+            to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.25));
+            background-size: 100% 4px;
+            z-index: 100;
+            pointer-events: none;
+            animation: scrollLines 8s linear infinite;
+        }
+        @keyframes scrollLines { 0% { background-position: 0 0; } 100% { background-position: 0 100vh; } }
+
+        /* --- 卡片主體 (延遲時間已根據第三階段調整) --- */
+        .card {
+            width: 90%;
+            max-width: 380px; 
+            background: linear-gradient(180deg, #2d2925 0%, #1a1815 100%),
+                        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px);
+            border: 2px solid #4a3f35;
+            border-radius: 10px;
+            padding: 35px 25px 45px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95), inset 0 0 25px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            opacity: 0;
+            /* 調整為 9.5s 開始出現，接在 3D 動畫之後 */
+            animation: cardAppear 1.2s cubic-bezier(0.23, 1, 0.32, 1) 9.5s forwards; 
+        }
+
+        .hazard-tape-top, .hazard-tape-bottom {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 14px;
+            background: repeating-linear-gradient(45deg, #d49900, #d49900 12px, #1a1a1a 12px, #1a1a1a 24px);
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.8);
+        }
+        .hazard-tape-top { top: 0; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+        .hazard-tape-bottom { bottom: 0; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+
+        .header-group {
+            margin-top: 20px;
+            margin-bottom: 50px;
+            position: relative;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            letter-spacing: 2.5px;
+            color: #ff4400;
+            margin-bottom: 6px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(255, 68, 0, 0.7);
+            animation: glitch 4s infinite, flickerTitle 10s infinite;
+        }
+
+        .role-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 28px;
+            color: #ffbf00;
+            letter-spacing: 4px;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px rgba(255, 191, 0, 0.8), 
+                         0 0 20px rgba(255, 191, 0, 0.5),
+                         0 0 30px rgba(255, 191, 0, 0.3);
+            margin: 0;
+            position: relative;
+            animation: glitchRole 5s infinite, burnIn 8s infinite; 
+        }
+
+        @keyframes glitch {
+            0%, 96%, 98%, 100% { opacity: 1; transform: translateX(0); }
+            97% { opacity: 0.8; transform: translateX(-3px); color: #fff; }
+            99% { opacity: 0.6; transform: translateX(3px); color: #ff4400; }
+        }
+
+        @keyframes glitchRole {
+            0%, 94%, 96%, 100% { opacity: 1; transform: scale(1) skew(0deg); text-shadow: 0 0 10px rgba(255, 191, 0, 0.8), 0 0 20px rgba(255, 191, 0, 0.5); }
+            95% { opacity: 0.9; transform: scale(1.02) skew(-2deg); color: #fff; text-shadow: 0 0 15px #fff; }
+            97% { opacity: 0.8; transform: scale(0.98) skew(2deg); color: #ff4400; text-shadow: 0 0 10px #ff4400; }
+        }
+
+        @keyframes burnIn {
+            0%, 100% { opacity: 1; filter: brightness(1); }
+            50% { opacity: 0.95; filter: brightness(1.1); }
+            52% { opacity: 1; filter: brightness(1.2) contrast(1.1); }
+            54% { opacity: 0.98; filter: brightness(1); }
+        }
+        
+        @keyframes flickerTitle {
+            0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% { opacity: 1; }
+            20%, 21.999%, 63%, 63.999%, 65%, 69.999% { opacity: 0.7; }
+        }
+
+        .profile-wrapper {
+            position: relative;
+            width: 170px;
+            height: 170px;
+            margin: 0 auto 35px;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(1deg); }
+        }
+
+        .profile-img {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 130%;
+            height: auto;
+            max-height: 260px;
+            z-index: 10;
+            filter: drop-shadow(0 -10px 20px rgba(0, 0, 0, 0.95)) grayscale(20%);
+        }
+
+        .name {
+            font-family: 'Lucida Console', Monaco, monospace;
+            font-size: 28px;
+            letter-spacing: 2.5px;
+            margin-bottom: 30px;
+            color: #fff;
+            text-transform: uppercase;
+            text-shadow: 0 0 6px #fff, 0 0 12px #ffbf00, 0 0 20px #ffbf00;
+            animation: flicker 3s infinite;
+        }
+
+        @keyframes flicker {
+            0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100% { opacity: 1; text-shadow: 0 0 6px #fff, 0 0 12px #ffbf00, 0 0 20px #ffbf00; }
+            20%, 21.999%, 63%, 63.999%, 65%, 69.999% { opacity: 0.4; text-shadow: none; filter: blur(1px); }
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 35px;
+            padding: 0 10px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.7);
+            border-top: 3px solid #ffbf00;
+            border-radius: 8px;
+            padding: 15px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 5px 15px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card.full-width { grid-column: span 2; }
+        .info-card:hover { border-top-color: #ff4400; background: rgba(255, 191, 0, 0.15); transform: translateY(-3px); cursor: pointer; box-shadow: 0 8px 25px rgba(0,0,0,0.6); }
+        .info-card:hover .value { color: #fff; text-shadow: 0 0 8px #fff; }
+
+        .label { font-size: 12px; color: #8c8173; font-weight: bold; margin-bottom: 6px; letter-spacing: 1.5px; text-transform: uppercase; }
+        .value { font-size: 15px; color: #ffbf00; font-weight: bold; text-shadow: 0 0 6px rgba(255, 191, 0, 0.5); text-align: center; transition: color 0.2s; }
+
+        .footer { display: flex; justify-content: center; align-items: center; padding: 0 10px; margin-top: 10px; }
+        .icons { display: flex; gap: 20px; }
+        .icons a { display: flex; justify-content: center; align-items: center; width: 42px; height: 42px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 2px solid #4a3f35; transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .icons a:hover { background: rgba(255, 191, 0, 0.25); border-color: #ffbf00; transform: scale(1.15) rotate(5deg); box-shadow: 0 0 15px rgba(255, 191, 0, 0.4); }
+        .icons img { width: 22px; height: 22px; filter: invert(70%) sepia(90%) saturate(1500%) hue-rotate(15deg) brightness(95%) contrast(95%); transition: filter 0.2s; }
+        .icons a:hover img { filter: invert(100%) brightness(100%); }
+    </style>
+</head>
+<body>
+
+    <div id="boot-screen">
+        <div class="typing-text">> ACCESSING SECURE DATA...</div>
+    </div>
+
+    <div id="position-discovery">
+        <div class="position-box">
+            <div style="font-family: 'Courier New', monospace; font-size: 11px; color: #8c8173; margin-bottom: 8px; letter-spacing: 2px;">CREDENTIALS VERIFIED</div>
+            PARTICIPANT
+        </div>
+    </div>
+
+    <div id="target-zoom">
+        <div class="hologram-wrapper">
+            <img src="image/evelyn.png" alt="Targeting">
+        </div>
+        <div class="zoom-scan-bar"></div>
+        <div class="zoom-text">TARGET IDENTIFIED:<br> Evelyn Dang Tynn </div>
+    </div>
+
+    <div class="scanlines"></div>
+
+    <div class="card">
+        <div class="hazard-tape-top"></div>
+
+        <div class="header-group">
+            <div class="subtitle">THE MIST AGREEMENT</div>
+            <h1 class="role-title">PARTICIPANT</h1>
+        </div>
+        
+        <div class="profile-wrapper">
+            <img src="image/evelyn.png" class="profile-img" alt="Survivor Profile">
+        </div>
+        
+        <div class="name">Evelyn Dang Tynn  </div>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <span class="label">MBTI:</span>
+                <span class="value">ESTJ</span>
+            </div>
+            <div class="info-card">
+                <span class="label">FACULTY:</span>
+                <span class="value">FBF</span>
+            </div>
+            <div class="info-card full-width">
+                <span class="label">BIRTHDAY:</span>
+                <span class="value">2005 / 04 / 08</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="icons">
+                <a href="#"><img src="https://cdn-icons-png.flaticon.com/512/3389/3389081.png" alt="Book"></a>
+                <a href="https://www.instagram.com/evelyndang_0408/?utm_source=ig_web_button_share_sheet" target="_blank">
+                    <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" alt="IG">
+                </a>
+            </div>
+        </div>
+        <div class="hazard-tape-bottom"></div>
+    </div>
+
+</body>
+</html>
